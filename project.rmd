@@ -1,0 +1,156 @@
+---
+title: "Machine Learning Project"
+author: "Jonathan Cook"
+date: "Thursday, June 18, 2015"
+output: html_document
+---
+
+The goal of this project is to use a dataset from the Human Activity Recognition project to learn to tell apart different ways of incorrectly doing a dumbbell curl.  I will train a model based on the training data provided and then use the model to predict which of the 5 different techniques are being done from a new set of test data.
+
+In this document I will intersperse the code used to get my results with text explaining what I was doing and why.
+
+First I load some libraries that will be necessary for the program.
+
+```{r, include=FALSE}
+library(caret)
+library(AppliedPredictiveModeling)
+```
+
+Then I load in the data that I will be using for the training and testing.
+```{r}
+trainset<-read.csv("pml-training.csv", header = T)
+testset<-read.csv("pml-testing.csv", header = T)
+```
+
+I make sure to set my seed so that it will be reproducible.  The seed that I chose was the same as the seed used in the 2nd quiz because I already had it programmed in and I figured it was as good as any other one.  the important thing is to have it set to anything so that it can be reproduced.
+```{r}
+set.seed(3433)
+```
+
+My first thought was to try to make my prediction based on all of the data that I had.  This is what I was going to do until I checked some of the data.  The first column is named X and just seems to be a count.  Since the results to be predicted, classe, are listed in order from all of the A's through all of the E's I knew that I should not predict based on the X column, since the lowest values are likely to be A and the highest are likely to be E.  I'm sure that isn't what we were meant to sort by.  I also decided right off the bat to throw out user_name.  I also will remove the timestamps as I don't think there will be any relationship between when an exercise is done to what  manner it is done in.  
+
+Upon examining the data in a spreadsheet, I saw that most of the values were missing for the kurtosis and skewness columns and also all of the max, min, amplitude and var and avg and stddev.
+
+I also noticed that the num_window seemed to be directly correlated with the result we want and should not have been taken into account.  So I removed new_window and num_window.
+
+I didn't know what any of the other columns were for on initial viewing, so I decided to use all of them to predict.  That narrowed me down from 160 to 53 different categories.  Much more manageable.
+
+```{r}
+drops<-c("X", "user_name")
+#remove X and user_name
+trainset<-trainset[,!(names(trainset) %in% drops)]
+testset<-testset[,!(names(testset) %in% drops)]
+#remove the timestamps
+trainset<-trainset[,-grep("time", names(trainset))]
+testset<-testset[,-grep("time", names(testset))]
+#remove the kurtosis
+trainset<-trainset[,-grep("kurtosis", names(trainset))]
+testset<-testset[,-grep("kurtosis", names(testset))]
+#remove the skewness
+trainset<-trainset[,-grep("skewness", names(trainset))]
+testset<-testset[,-grep("skewness", names(testset))]
+#remove the max
+trainset<-trainset[,-grep("max", names(trainset))]
+testset<-testset[,-grep("max", names(testset))]
+#remove the min
+trainset<-trainset[,-grep("min", names(trainset))]
+testset<-testset[,-grep("min", names(testset))]
+#remove the amplitude
+trainset<-trainset[,-grep("amplitude", names(trainset))]
+testset<-testset[,-grep("amplitude", names(testset))]
+#remove the var
+trainset<-trainset[,-grep("var", names(trainset))]
+testset<-testset[,-grep("var", names(testset))]
+#remove the avg
+trainset<-trainset[,-grep("avg", names(trainset))]
+testset<-testset[,-grep("avg", names(testset))]
+#remove the stddev
+trainset<-trainset[,-grep("stddev", names(trainset))]
+testset<-testset[,-grep("stddev", names(testset))]
+#remove the window
+trainset<-trainset[,-grep("window", names(trainset))]
+testset<-testset[,-grep("window", names(testset))]
+```
+
+After I'd stripped off all of those columns I wrote the data back out to a .csv file so that I could make sure it was what I wanted.
+
+```{r}
+write.csv(trainset, "newTraining.csv")
+write.csv(testset, "newTesting.csv")
+```
+
+Next, I cut out a chunk of the training sample to be used in my crossvalidation process.  I only used 1% of the approximately 20,000 samples because I was still jsut trying to get set up with decent parameters and it was much faster than running the entire set.  I also saved the part of the trainingset that isn's used for training (in this case, 99%) to mytestset that I can use to estimate my out of sample error.
+
+```{r}
+trainIndex = createDataPartition(trainset$classe, p = 0.01,list=FALSE)
+trainsetPure<-trainset
+trainset<-trainset[trainIndex,]
+mytestset<-trainsetPure[-trainIndex,]
+```
+
+The first model I tried had used crossvalidation with 10 folds and used the gbm method in training.  I chose the number of folds as 10 because it seemed like the sweet spot in that the bias or the error rate estimator will be small without the variance getting too large.  Also, it is a small enough number so as to be capable of running in limited time.  I did this with only 5 percent of the data.  I was just trying to get something done first that would show me something, so I didn't put much time into tuning this.  I intend to do repeated crossvalidation once I tune my parameters a bit, but for this run, I only did it a single time.  
+```{r}
+numFolds<-10
+fitControl<-trainControl(method = "repeatedcv", number = numFolds, repeats = 1)
+```
+
+After I did this, I ran a prediction against the unfiltered training set(not just 1%).  The first 1000 entries in the training set all were of classe A, but the prediction with this model over the first 1000 entries had many mistakes.  
+
+```{r, include=FALSE}
+Fit1<-train(classe ~ ., data=trainset, method="gbm", trControl = fitControl, verbose=FALSE)
+j<-predict(Fit1, mytestset)
+```
+```{r}
+Fit1<-train(classe ~ ., data=trainset, method="gbm", trControl = fitControl, verbose=FALSE)
+j<-predict(Fit1, mytestset)
+```
+
+I ran it with all 53 variables on 1% of the data.  I chose 1% because it was quicker and gave me a first estimate.  This was a gbh model type, which is stochastic gradient boosting.  Upon running it, I got an accuracy of .67, which isn't great, but not bad for only using 1% to train the model.  I did a summary on the model and saw the relative influence of each variable that I'd used.  So I ran the model again, only using the 5 most relevant variables.  Again, I did it on 1% of the data.  I got an accuracy of 63%.  Not much worse than using all 53 variables.  I ran it again with the top 10 most relevant variables, expecting it to be somewhere between 63% and 67%.  It came out at 61%.  This surprised me.  Since I wasn't having too much of a problem with the run time, I went back to the entire set of 53 variables.
+```{r}
+summary(Fit1)
+```
+
+I wanted to try some other kinds of models, so I switch from gbh to rf, which is a random forest model.  I, again, ran this on only 1% of my training data and I got an accuracy of .7092.  
+
+```{r, include=FALSE}
+rfFit<-train(classe ~ ., data=trainset, method="rf", trControl = fitControl, verbose=FALSE)
+```
+
+```{r}
+rfFit<-train(classe ~ ., data=trainset, method="rf", trControl = fitControl, verbose=FALSE)
+j<-predict(rfFit, mytestset)
+```
+
+When I ran it with 5% of the training data, I got .9044 accuracy.  This was more like it.  Finally I ran it with 70% of the data.  This gave me an accuracy of .992 with a 95% confidence level of it being between .9894 and .9941.  When I ran the Confusion Matrix it shows a pretty good result.
+
+```{r}
+trainIndex = createDataPartition(trainsetPure$classe, p = 0.01,list=FALSE)
+trainset<-trainsetPure[trainIndex,]
+mytestset<-trainsetPure[-trainIndex,]
+fitControl<-trainControl(method = "repeatedcv", number = numFolds, repeats = 3)
+rfFitBig<-train(classe ~ ., data=trainset, method="gbm", trControl = fitControl, verbose=FALSE)
+j<-predict(rfFitBig, mytestset)
+print(confusionMatrix(j, mytestset$classe))
+```
+
+
+Finally, I ran my model on the test data that I will use to submit my answers to the project website.
+
+Since I ran this on a set of data that i set aside in teh training data, I expect the out of sample error to be about the same as the JEC that it predicts.  I am calling this the error because it is 1 minus the accuracy.  Another reason I have to think it will be very close to the true out of sample error is how the data was collected.   It was collected in such a contrived method, with all of the participants doing the exercises in a very specific way, so I'm expecting the out of sample data to be very similar to the in sample data, hence the in sample estimate should be quite close.
+
+```{r}
+answers<-predict(rfFitBig, testset)
+
+n = length(answers)
+for(i in 1:n){
+  filename = paste0("problem_id_",i,".txt")
+  write.table(answers[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+}
+```{r}
+```
+```{r}
+```
+```{r}
+```
+```{r}
+```
