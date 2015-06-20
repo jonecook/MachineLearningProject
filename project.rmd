@@ -124,11 +124,11 @@ j<-predict(rfFit, mytestset)
 When I ran it with 5% of the training data, I got .9044 accuracy.  This was more like it.  Finally I ran it with 70% of the data.  This gave me an accuracy of .992 with a 95% confidence level of it being between .9894 and .9941.  When I ran the Confusion Matrix it shows a pretty good result.
 
 ```{r}
-trainIndex = createDataPartition(trainsetPure$classe, p = 0.01,list=FALSE)
+trainIndex = createDataPartition(trainsetPure$classe, p = 0.7,list=FALSE)
 trainset<-trainsetPure[trainIndex,]
 mytestset<-trainsetPure[-trainIndex,]
 fitControl<-trainControl(method = "repeatedcv", number = numFolds, repeats = 3)
-rfFitBig<-train(classe ~ ., data=trainset, method="gbm", trControl = fitControl, verbose=FALSE)
+rfFitBig<-train(classe ~ ., data=trainset, method="rf", trControl = fitControl, verbose=FALSE)
 j<-predict(rfFitBig, mytestset)
 print(confusionMatrix(j, mytestset$classe))
 ```

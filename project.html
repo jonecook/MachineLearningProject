@@ -187,44 +187,44 @@ j&lt;-predict(Fit1, mytestset)</code></pre>
 <pre class="r"><code>rfFit&lt;-train(classe ~ ., data=trainset, method=&quot;rf&quot;, trControl = fitControl, verbose=FALSE)
 j&lt;-predict(rfFit, mytestset)</code></pre>
 <p>When I ran it with 5% of the training data, I got .9044 accuracy. This was more like it. Finally I ran it with 70% of the data. This gave me an accuracy of .992 with a 95% confidence level of it being between .9894 and .9941. When I ran the Confusion Matrix it shows a pretty good result.</p>
-<pre class="r"><code>trainIndex = createDataPartition(trainsetPure$classe, p = 0.01,list=FALSE)
+<pre class="r"><code>trainIndex = createDataPartition(trainsetPure$classe, p = 0.7,list=FALSE)
 trainset&lt;-trainsetPure[trainIndex,]
 mytestset&lt;-trainsetPure[-trainIndex,]
 fitControl&lt;-trainControl(method = &quot;repeatedcv&quot;, number = numFolds, repeats = 3)
-rfFitBig&lt;-train(classe ~ ., data=trainset, method=&quot;gbm&quot;, trControl = fitControl, verbose=FALSE)
+rfFitBig&lt;-train(classe ~ ., data=trainset, method=&quot;rf&quot;, trControl = fitControl, verbose=FALSE)
 j&lt;-predict(rfFitBig, mytestset)
 print(confusionMatrix(j, mytestset$classe))</code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 
 ##           Reference
 ## Prediction    A    B    C    D    E
-##          A 4372  558  339  406   82
-##          B  386 2518  363  200  625
-##          C  255  253 2145  389  234
-##          D  349  302  386 1936  294
-##          E  162  128  154  252 2335
+##          A 1672   14    0    0    0
+##          B    1 1124    2    1    3
+##          C    1    1 1020   10    3
+##          D    0    0    4  953    5
+##          E    0    0    0    0 1071
 ## 
 ## Overall Statistics
 ##                                           
-##                Accuracy : 0.6851          
-##                  95% CI : (0.6785, 0.6916)
-##     No Information Rate : 0.2844          
+##                Accuracy : 0.9924          
+##                  95% CI : (0.9898, 0.9944)
+##     No Information Rate : 0.2845          
 ##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
 ##                                           
-##                   Kappa : 0.601           
-##  Mcnemar's Test P-Value : &lt; 2.2e-16       
+##                   Kappa : 0.9903          
+##  Mcnemar's Test P-Value : NA              
 ## 
 ## Statistics by Class:
 ## 
 ##                      Class: A Class: B Class: C Class: D Class: E
-## Sensitivity            0.7915   0.6699   0.6333  0.60823   0.6541
-## Specificity            0.9004   0.8995   0.9295  0.91804   0.9561
-## Pos Pred Value         0.7594   0.6153   0.6548  0.59259   0.7704
-## Neg Pred Value         0.9157   0.9191   0.9231  0.92282   0.9247
-## Prevalence             0.2844   0.1935   0.1744  0.16388   0.1838
-## Detection Rate         0.2251   0.1296   0.1104  0.09968   0.1202
-## Detection Prevalence   0.2964   0.2107   0.1687  0.16820   0.1561
-## Balanced Accuracy      0.8459   0.7847   0.7814  0.76314   0.8051</code></pre>
+## Sensitivity            0.9988   0.9868   0.9942   0.9886   0.9898
+## Specificity            0.9967   0.9985   0.9969   0.9982   1.0000
+## Pos Pred Value         0.9917   0.9938   0.9855   0.9906   1.0000
+## Neg Pred Value         0.9995   0.9968   0.9988   0.9978   0.9977
+## Prevalence             0.2845   0.1935   0.1743   0.1638   0.1839
+## Detection Rate         0.2841   0.1910   0.1733   0.1619   0.1820
+## Detection Prevalence   0.2865   0.1922   0.1759   0.1635   0.1820
+## Balanced Accuracy      0.9977   0.9927   0.9955   0.9934   0.9949</code></pre>
 <p>Since I ran this on a set of data that i set aside in the training data, I expect the out of sample error to be about the same as the .008 that it predicts. I am calling this the error because it is 1 minus the accuracy. Another reason I have to think it will be very close to the true out of sample error is how the data was collected. It was collected in such a contrived method, with all of the participants doing the exercises in a very specific way, so I’m expecting the out of sample data to be very similar to the in sample data, hence the in sample estimate should be quite close.</p>
 <p>Finally, I ran my model on the test data that I will use to submit my answers to the project website.</p>
 <pre class="r"><code>answers&lt;-predict(rfFitBig, testset)
